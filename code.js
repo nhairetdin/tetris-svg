@@ -1,11 +1,32 @@
-const FPS = 1, INTERVAL = 1000 / FPS, UNIT = 10
+const FPS = 2, INTERVAL = 1000 / FPS, UNIT = 1, WIDTH = 10, HEIGHT = 20, STACK = []
+const COLOR = [
+  {"stroke": "rgb(189, 255, 3)", "fill": "rgba(189, 255, 3, 0.1)"},
+  {"stroke": "rgb(138, 3, 255)", "fill": "rgba(138, 3, 255, 0.1)"},
+  {"stroke": "rgb(251, 78, 20)", "fill": "rgba(251, 78, 20, 0.1)"},
+  {"stroke": "rgb(20, 187, 251)", "fill": "rgba(20, 187, 251, 0.1)"},
+  {"stroke": "rgb(251, 225, 20)", "fill": "rgba(251, 225, 20, 0.1)"},
+  {"stroke": "rgb(0, 255, 153)", "fill": "rgba(0, 255, 153, 0.1)"},
+  {"stroke": "rgb(255, 0, 102)", "fill": "rgba(255, 0, 102, 0.1)"}
+]
+
 let lastTime = (new Date()).getTime(), currentTime = 0, delta = 0, vendors = ['webkit', 'moz'], counter = 0, pause = true, draw = SVG('draw')
-draw.rect(100, 200).fill('rgba(255, 255, 255, 0)').stroke({ width: 1, color: 'rgb(222, 222, 222)' })
+draw.rect(WIDTH, HEIGHT).fill('rgba(255, 255, 255, 0)').stroke({ width: 0.1, color: 'rgb(222, 222, 222)' })
+
+for (let x = 0; x < WIDTH; x++) {
+  STACK[x] = []
+  for (let y = 0; y < HEIGHT; y++) {
+    STACK[x][y] = null
+  }
+}
 
 class Piece {
-  constructor (x, y, d) {
+  constructor (x, y, d, type) {
     this._x = x, this._y = y, this._originX = x, this._originY = y
-    this._rect = d.rect(9, 9).move(this._x, this._y).fill('rgba(255, 0, 102, 0.1)').stroke({ width: 0.5, color: '#f06'})
+    this._rect = d.rect(0.9, 0.9)
+      .move(this._x, this._y)
+      .fill(COLOR[type].fill)
+      .stroke({ width: 0.05, color: COLOR[type].stroke})
+      .radius(0.05)
   }
 
   get getX()    { return this._x }
@@ -22,37 +43,37 @@ class Piece {
     let newY = Math.round((this._x - p) * Math.sin(angle) + (this._y - q) * Math.cos(angle)) + q
     this._x = newX
     this._y = newY
-    this._rect.finish()
+    this._rect.stop()
     this.animate(50, ">")
   }
 
   get getRect() { return this._rect }
 
   animate(duration, easing) {
-    this._rect.finish()
+    this._rect.stop()
     this._rect.animate(duration, easing).move(this._x, this._y)
   }
 }
 
 class Block {
-  constructor() {
-    this._pieces = [], this._origin
+  constructor(type) {
+    this._pieces = [], this._origin, this._type = type
     this._types = [
-                    [{"x": 0, "y": 0}, {"x": 0, "y": 1, "origin": true}, {"x": 0, "y": 2}, {"x":0, "y":3}],
-                    [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 2, "y": 1}],
-                    [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}],
-                    [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 1, "y": 1}],
-                    [{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 0, "y": 1}, {"x": 1, "y": 1, "origin": true}],
-                    [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 1, "y": 1}, {"x": 2, "y": 1}],
-                    [{"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}, {"x": 1, "y": 1}]
-                  ]
+      [{"x": 0, "y": 0}, {"x": 0, "y": 1, "origin": true}, {"x": 0, "y": 2}, {"x":0, "y":3}],
+      [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 2, "y": 1}],
+      [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}],
+      [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 1, "y": 1}],
+      [{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 0, "y": 1}, {"x": 1, "y": 1, "origin": true}],
+      [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 1, "y": 1}, {"x": 2, "y": 1}],
+      [{"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}, {"x": 1, "y": 1}]
+    ]
   }
 
   createPieces() {
-    for (let i = 0; i < this._types[6].length; i++) {
-      let p = new Piece(this._types[6][i].x * UNIT, this._types[6][i].y * UNIT, draw)
+    for (let i = 0; i < this._types[this._type].length; i++) {
+      let p = new Piece(this._types[this._type][i].x * UNIT, this._types[this._type][i].y * UNIT, draw, this._type)
       this._pieces.push(p)
-      if (this._types[6][i].origin) {
+      if (this._types[this._type][i].origin) {
         this._origin = p
       }
     }
@@ -88,12 +109,44 @@ class Block {
   }
 }
 
-let block = new Block()
+let block = getNewBlock()
 block.createPieces()
 
 function forward() {
-  block.move("down", 300, "bounce")
-  console.log(block.getPieces[0].getX, block.getPieces[0].getY)
+  if (checkCollision("down")) {
+    let pieces = block.getPieces
+    for (let i = 0; i < pieces.length; i++) {
+      STACK[pieces[i].getX][pieces[i].getY] = pieces[i]
+    }
+    block = getNewBlock()
+    block.createPieces()
+  } else {
+    console.log(block.getPieces[0].getX, block.getPieces[0].getY)
+    block.move("down", 100, ">")
+  }
+}
+
+function checkCollision(direction) {
+  let pieces = block.getPieces
+  switch (direction) {
+    case "down":
+      for (let i = 0; i < pieces.length; i++) {
+        if (pieces[i].getY + 1 === 20) {
+          return true
+        }
+
+        if (STACK[pieces[i].getX][pieces[i].getY + 1] !== null) {
+          return true
+        }
+      }
+      break;
+    default:
+      return false
+  }
+}
+
+function getNewBlock() {
+  return new Block(Math.floor(Math.random() * 7))
 }
 
 for(let x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
@@ -130,13 +183,13 @@ function gameLoop() {
 function handleKeyDown(e) {
   switch (e.keyCode) {
     case 37: //left
-      block.move("left", 50, ">")
+      block.move("left", 100, ">")
       break;
     case 38: //up
       block.move("up", 50, ">")
       break;
     case 39: //right
-      block.move("right", 50, ">")
+      block.move("right", 100, ">")
       break;
     case 40: //down
       block.move("down", 50, ">")
