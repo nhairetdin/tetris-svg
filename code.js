@@ -36,7 +36,7 @@ class Piece {
   get getNewX() { return this._newX }
   get getNewY() { return this._newY }
   get getRect() { return this._rect }
-  
+
   move() {
     this._x = this._newX
     this._y = this._newY
@@ -52,7 +52,7 @@ class Block {
   constructor(type) {
     this._pieces = [], this._origin, this._type = type
     this._types = [
-      [{"x": 0, "y": 0}, {"x": 0, "y": 1, "origin": true}, {"x": 0, "y": 2}, {"x":0, "y":3}],
+      [{"x": 0, "y": 0}, {"x": 0, "y": 1, "origin": true}, {"x": 0, "y": 2}, {"x": 0, "y": 3}],
       [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 2, "y": 1}],
       [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}],
       [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 1, "y": 1}],
@@ -68,7 +68,7 @@ class Block {
 
   createPieces() {
     for (let i = 0; i < this._types[this._type].length; i++) {
-      let p = new Piece(this._types[this._type][i].x * UNIT, this._types[this._type][i].y * UNIT, draw, this._type)
+      let p = new Piece(this._types[this._type][i].x * UNIT + 3, this._types[this._type][i].y * UNIT, draw, this._type)
       this._pieces.push(p)
       if (this._types[this._type][i].origin) {
         this._origin = p
@@ -106,6 +106,7 @@ class Block {
       })
       return true
     }
+    this.resetNewCoordinates()
     return false
   }
 
@@ -119,11 +120,12 @@ class Block {
     }
     return true
   }
-}
 
-function forward() {
-  if (!block.moveTo("down", 100, ">")) {
-    putToStack()
+  resetNewCoordinates() {
+    this._pieces.forEach(p => {
+      p.newX = p.getX
+      p.newY = p.getY
+    })
   }
 }
 
@@ -135,17 +137,31 @@ function putToStack() {
   block = getNewBlock()
 }
 
+function dropBlock() {
+  while(true) {
+    if (block.allowMove()) {
+      block.getPieces.forEach(p => { p.newY = p.getNewY + 1 })
+    } else {
+      block.getPieces.forEach(p => {
+        p.newY = p.getNewY - 1
+        p.move()
+        p.animate(500, "bounce")
+      })
+      break;
+    }
+  }
+}
+
 function getNewBlock() {
   return new Block(Math.floor(Math.random() * 7))
 }
 
-for(let x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-    window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
-    window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
-}
-
 function init() {
   window.addEventListener("keydown", handleKeyDown, false);
+  for(let x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+      window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+      window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] || window[vendors[x]+'CancelRequestAnimationFrame'];
+  }
   block = getNewBlock()
   toggleGameOn()
 }
@@ -165,7 +181,9 @@ function gameLoop() {
     delta = (currentTime-lastTime);
 
     if (delta > INTERVAL) {
-      forward()
+      if (!block.moveTo("down", 100, ">")) {
+        putToStack()
+      }
       lastTime = currentTime - (delta % INTERVAL)
     }
   }
@@ -180,7 +198,8 @@ function handleKeyDown(e) {
       block.moveTo("right", 100, ">")
       break;
     case 40: //down
-      block.moveTo("down", 100, ">")
+      dropBlock()
+      putToStack()
       break;
     case 65: //a
       block.moveTo("rotate", 100, ">", 270)
