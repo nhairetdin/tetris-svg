@@ -9,7 +9,7 @@ const COLOR = [
   {"stroke": "rgb(255, 0, 102)", "fill": "rgba(255, 0, 102, 0.1)"}
 ]
 
-let lastTime = (new Date()).getTime(), currentTime = 0, delta = 0, vendors = ['webkit', 'moz'], counter = 0, pause = true, draw = SVG('draw')
+let lastTime = (new Date()).getTime(), currentTime = 0, delta = 0, vendors = ['webkit', 'moz'], counter = 0, pause = true, draw = SVG('draw'), block
 draw.rect(WIDTH, HEIGHT).fill('rgba(255, 255, 255, 0)').stroke({ width: 0.1, color: 'rgb(222, 222, 222)' })
 
 for (let x = 0; x < WIDTH; x++) {
@@ -21,7 +21,7 @@ for (let x = 0; x < WIDTH; x++) {
 
 class Piece {
   constructor (x, y, d, type) {
-    this._x = x, this._y = y, this._originX = x, this._originY = y
+    this._x = x, this._y = y, this._newX = x, this._newY = y
     this._rect = d.rect(0.9, 0.9)
       .move(this._x, this._y)
       .fill(COLOR[type].fill)
@@ -31,23 +31,16 @@ class Piece {
 
   get getX()    { return this._x }
   get getY()    { return this._y }
-
-  moveLeft()  { this._x -= UNIT }
-  moveUp()    { this._y -= UNIT }
-  moveRight() { this._x += UNIT }
-  moveDown()  { this._y += UNIT }
-
-  rotate(angle, p, q) {
-    angle = angle * Math.PI / 180
-    let newX = Math.round((this._x - p) * Math.cos(angle) - (this._y - q) * Math.sin(angle)) + p
-    let newY = Math.round((this._x - p) * Math.sin(angle) + (this._y - q) * Math.cos(angle)) + q
-    this._x = newX
-    this._y = newY
-    this._rect.stop()
-    this.animate(50, ">")
-  }
-
+  set newX(x)   { this._newX = x }
+  set newY(y)   { this._newY = y }
+  get getNewX() { return this._newX }
+  get getNewY() { return this._newY }
   get getRect() { return this._rect }
+  
+  move() {
+    this._x = this._newX
+    this._y = this._newY
+  }
 
   animate(duration, easing) {
     this._rect.stop()
@@ -67,7 +60,11 @@ class Block {
       [{"x": 0, "y": 0}, {"x": 1, "y": 0, "origin": true}, {"x": 1, "y": 1}, {"x": 2, "y": 1}],
       [{"x": 1, "y": 0, "origin": true}, {"x": 2, "y": 0}, {"x": 0, "y": 1}, {"x": 1, "y": 1}]
     ]
+    this.createPieces()
   }
+
+  get getPieces() { return this._pieces }
+  get origin()    { return this._origin }
 
   createPieces() {
     for (let i = 0; i < this._types[this._type].length; i++) {
@@ -79,70 +76,63 @@ class Block {
     }
   }
 
-  move(direction, duration, easing) {
-    this._pieces.forEach(p => {
+  moveTo(direction, duration, easing, angle) {
+    for (let i = 0; i < this._pieces.length; i++) {
+      this._pieces[i].newX = this._pieces[i].getX
+      this._pieces[i].newY = this._pieces[i].getY
       switch (direction) {
         case "left":
-          p.moveLeft()
+          this._pieces[i].newX = this._pieces[i].getX - UNIT
           break;
         case "up":
-          p.moveUp()
+          this._pieces[i].newY = this._pieces[i].getY - UNIT
           break;
         case "right":
-          p.moveRight()
+          this._pieces[i].newX = this._pieces[i].getX + UNIT
           break;
         case "down":
-          p.moveDown()
+          this._pieces[i].newY = this._pieces[i].getY + UNIT
+          break;
+        case "rotate":
+          this._pieces[i].newX = Math.round((this._pieces[i].getX - this._origin.getX) * Math.cos(angle * Math.PI / 180) - (this._pieces[i].getY - this._origin.getY) * Math.sin(angle * Math.PI / 180)) + this._origin.getX
+          this._pieces[i].newY = Math.round((this._pieces[i].getX - this._origin.getX) * Math.sin(angle * Math.PI / 180) + (this._pieces[i].getY - this._origin.getY) * Math.cos(angle * Math.PI / 180)) + this._origin.getY
           break;
       }
-      p.animate(duration, easing)
-    })
+    }
+    if (this.allowMove()) {
+      this._pieces.forEach(p => {
+        p.move()
+        p.animate(duration, easing)
+      })
+      return true
+    }
+    return false
   }
 
-  get getPieces() { return this._pieces }
-  get origin()    { return this._origin }
-
-  rotate(angle) {
-    this._pieces.forEach(piece => {
-      piece.rotate(angle, this._origin.getX, this._origin.getY)
-    })
+  allowMove() {
+    for (let i = 0; i < this._pieces.length; i++) {
+      let newX = this._pieces[i].getNewX
+      let newY = this._pieces[i].getNewY
+      if (newX < 0 || newX > 9 || newY > 19 || STACK[newX][newY] !== null) {
+        return false
+      }
+    }
+    return true
   }
 }
-
-let block = getNewBlock()
-block.createPieces()
 
 function forward() {
-  if (checkCollision("down")) {
-    let pieces = block.getPieces
-    for (let i = 0; i < pieces.length; i++) {
-      STACK[pieces[i].getX][pieces[i].getY] = pieces[i]
-    }
-    block = getNewBlock()
-    block.createPieces()
-  } else {
-    console.log(block.getPieces[0].getX, block.getPieces[0].getY)
-    block.move("down", 100, ">")
+  if (!block.moveTo("down", 100, ">")) {
+    putToStack()
   }
 }
 
-function checkCollision(direction) {
+function putToStack() {
   let pieces = block.getPieces
-  switch (direction) {
-    case "down":
-      for (let i = 0; i < pieces.length; i++) {
-        if (pieces[i].getY + 1 === 20) {
-          return true
-        }
-
-        if (STACK[pieces[i].getX][pieces[i].getY + 1] !== null) {
-          return true
-        }
-      }
-      break;
-    default:
-      return false
+  for (let i = 0; i < pieces.length; i++) {
+    STACK[pieces[i].getX][pieces[i].getY] = pieces[i]
   }
+  block = getNewBlock()
 }
 
 function getNewBlock() {
@@ -156,6 +146,7 @@ for(let x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
 
 function init() {
   window.addEventListener("keydown", handleKeyDown, false);
+  block = getNewBlock()
   toggleGameOn()
 }
 
@@ -183,25 +174,24 @@ function gameLoop() {
 function handleKeyDown(e) {
   switch (e.keyCode) {
     case 37: //left
-      block.move("left", 100, ">")
-      break;
-    case 38: //up
-      block.move("up", 50, ">")
+      block.moveTo("left", 100, ">")
       break;
     case 39: //right
-      block.move("right", 100, ">")
+      block.moveTo("right", 100, ">")
       break;
     case 40: //down
-      block.move("down", 50, ">")
+      block.moveTo("down", 100, ">")
       break;
     case 65: //a
-      block.rotate(270)
+      block.moveTo("rotate", 100, ">", 270)
       break;
     case 68: //d
-      block.rotate(90)
+      block.moveTo("rotate", 100, ">", 90)
       break;
     case 80: //p
       toggleGameOn()
       break;
   }
 }
+//Math.round((this._x - p) * Math.cos(angle) - (this._y - q) * Math.sin(angle)) + p
+//Math.round((this._x - p) * Math.sin(angle) + (this._y - q) * Math.cos(angle)) + q
