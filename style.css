@@ -3,3 +3,7 @@ body {
   display: flex;
   justify-content: center;
 }
+
+svg {
+  height: 96vh;
+}

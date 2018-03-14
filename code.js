@@ -9,7 +9,7 @@ const COLOR = [
   {"stroke": "rgb(255, 0, 102)", "fill": "rgba(255, 0, 102, 0.1)"}
 ]
 
-let lastTime = (new Date()).getTime(), currentTime = 0, delta = 0, vendors = ['webkit', 'moz'], counter = 0, pause = true, draw = SVG('draw'), block
+let lastTime = (new Date()).getTime(), currentTime = 0, delta = 0, vendors = ['webkit', 'moz'], counter = 0, pause = true, draw = SVG('draw'), block, delay
 draw.rect(WIDTH, HEIGHT).fill('rgba(255, 255, 255, 0)').stroke({ width: 0.1, color: 'rgb(222, 222, 222)' })
 
 for (let x = 0; x < WIDTH; x++) {
@@ -134,7 +134,8 @@ function putToStack() {
   for (let i = 0; i < pieces.length; i++) {
     STACK[pieces[i].getX][pieces[i].getY] = pieces[i]
   }
-  block = getNewBlock()
+  checkRows()
+  removeBlock()
 }
 
 function dropBlock() {
@@ -152,8 +153,50 @@ function dropBlock() {
   }
 }
 
+function checkRows() {
+  for (let y = HEIGHT - 1; y > -1; y--) {
+    for (let x = 0; x < WIDTH; x++) {
+      if (STACK[x][y] === null) {
+        break
+      }
+      if (x === WIDTH - 1) {
+        for (let i = 0; i < WIDTH; i++) {
+          STACK[i][y].getRect.remove()
+          STACK[i][y] = null
+        }
+
+        for (let row = y; row > -1; row--) {
+          for (let col = 0; col < WIDTH; col++) {
+            if (STACK[col][row] !== null) {
+              let piece = STACK[col][row]
+              piece.newY = piece.getNewY + 1
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (let y = HEIGHT - 1; y > -1; y--) {
+    for (let x = 0; x < WIDTH; x++) {
+      if (STACK[x][y] !== null && STACK[x][y].getY !== STACK[x][y].getNewY) {
+        let piece = STACK[x][y]
+        STACK[x][piece.getNewY] = piece
+        piece.move()
+        piece.getRect.stop()
+        piece.getRect.animate(200, ">").move(piece.getX, piece.getY)
+        STACK[x][y] = null
+      }
+    }
+  }
+}
+
 function getNewBlock() {
   return new Block(Math.floor(Math.random() * 7))
+}
+
+function removeBlock() {
+  block = null
 }
 
 function init() {
@@ -180,9 +223,13 @@ function gameLoop() {
     currentTime = (new Date()).getTime()
     delta = (currentTime-lastTime);
 
-    if (delta > INTERVAL) {
-      if (!block.moveTo("down", 100, ">")) {
-        putToStack()
+    if (delta > INTERVAL && !delay) {
+      if (block) {
+        if (!block.moveTo("down", 100, ">")) {
+          putToStack()
+        }
+      } else {
+        block = getNewBlock()
       }
       lastTime = currentTime - (delta % INTERVAL)
     }
@@ -199,7 +246,11 @@ function handleKeyDown(e) {
       break;
     case 40: //down
       dropBlock()
-      putToStack()
+      delay = true
+      setTimeout(function() {
+        putToStack()
+        delay = false
+      }, 500)
       break;
     case 65: //a
       block.moveTo("rotate", 100, ">", 270)
