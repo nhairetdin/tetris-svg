@@ -1,7 +1,7 @@
 # Tetris-SVG
 
 ### Demo
-[Play](https://futstone.github.io/tetris-svg/)
+[Play](https://nhairetdin.github.io/tetris-svg/)
 
 #### Keys:
 __left__    move left
